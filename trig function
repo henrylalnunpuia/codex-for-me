@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Trig Functions Visualization</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background-color: white;
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const cx = 400;
+        const cy = 300;
+        const s = 150;
+
+        let theta = 0.5;
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Axes
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, cy);
+            ctx.lineTo(canvas.width, cy);
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, canvas.height);
+            ctx.stroke();
+
+            // Circle
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, s, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            let cos = Math.cos(theta);
+            let sin = Math.sin(theta);
+            let tan = Math.tan(theta);
+            let sec = (Math.abs(cos) > 0.001) ? 1 / cos : Infinity;
+            let csc = (Math.abs(sin) > 0.001) ? 1 / sin : Infinity;
+            let cot = (Math.abs(sin) > 0.001) ? cos / sin : Infinity;
+
+            const px = cx + s * cos;
+            const py = cy - s * sin;
+
+            // Ray
+            ctx.strokeStyle = 'black';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+
+            // Point
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Cosine: pure green
+            ctx.strokeStyle = 'green';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(px, cy);
+            ctx.stroke();
+            ctx.fillStyle = 'green';
+            ctx.fillText('cos(θ)', (cx + px) / 2, cy + 20);
+
+            // Sine: magenta
+            ctx.strokeStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.moveTo(px, cy);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillText('sin(θ)', px + 10, (cy + py) / 2);
+
+            if (isFinite(sec)) {
+                const qx = cx + s * sec;
+                const qy = cy;
+
+                // Overlap part with cosine: green
+                ctx.strokeStyle = 'green';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(px, cy);
+                ctx.stroke();
+
+                // Remaining secant part: violet
+                ctx.strokeStyle = '#9933ff';
+                ctx.beginPath();
+                ctx.moveTo(px, cy);
+                ctx.lineTo(qx, qy);
+                ctx.stroke();
+                ctx.fillStyle = '#9933ff';
+                ctx.fillText('sec(θ)', (px + qx) / 2 + 10, (cy + qy) / 2 + 10);
+
+                // Tangent: bright red
+                ctx.strokeStyle = '#ff3300';
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(qx, qy);
+                ctx.stroke();
+                ctx.fillStyle = '#ff3300';
+                ctx.fillText('tan(θ)', (px + qx) / 2 + 10, (py + qy) / 2);
+            }
+
+            if (isFinite(csc)) {
+                const rx = cx;
+                const ry = cy - s * csc;
+                // Cosecant: cyan
+                ctx.strokeStyle = '#00cccc';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(rx, ry);
+                ctx.stroke();
+                ctx.fillStyle = '#00cccc';
+                ctx.fillText('csc(θ)', (cx + rx) / 2 - 10, (cy + ry) / 2);
+
+                // Cotangent: dark brown
+                ctx.strokeStyle = '#663300';
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(rx, ry);
+                ctx.stroke();
+                ctx.fillStyle = '#663300';
+                ctx.fillText('cot(θ)', (px + rx) / 2, (py + ry) / 2 - 10);
+            }
+
+            // Normalize theta to [0, 2π)
+            let thetaNorm = theta % (2 * Math.PI);
+            if (thetaNorm < 0) thetaNorm += 2 * Math.PI;
+
+            // Draw degree arc always from x-axis CCW
+            ctx.strokeStyle = 'blue';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 40, 0, -thetaNorm, true);
+            ctx.stroke();
+
+            // Label angle in degrees
+            ctx.fillStyle = 'blue';
+            ctx.font = '14px Arial';
+            ctx.fillText(`${(thetaNorm * 180 / Math.PI).toFixed(0)}°`, cx + 45 * Math.cos(thetaNorm / 2), cy - 45 * Math.sin(thetaNorm / 2));
+
+            // Display values
+            ctx.font = '14px Arial';
+            ctx.fillStyle = 'black';
+            ctx.fillText(`θ = ${theta.toFixed(2)} rad (~${(theta * 180 / Math.PI).toFixed(0)}°)`, 10, 20);
+
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillText(`sin(θ) = ${sin.toFixed(3)}`, 10, 40);
+
+            ctx.fillStyle = 'green';
+            ctx.fillText(`cos(θ) = ${cos.toFixed(3)}`, 10, 60);
+
+            ctx.fillStyle = '#ff3300';
+            ctx.fillText(`tan(θ) = ${(isFinite(tan) ? tan.toFixed(3) : '∞')}`, 10, 80);
+
+            ctx.fillStyle = '#9933ff';
+            ctx.fillText(`sec(θ) = ${(isFinite(sec) ? sec.toFixed(3) : '∞')}`, 10, 100);
+
+            ctx.fillStyle = '#00cccc';
+            ctx.fillText(`csc(θ) = ${(isFinite(csc) ? csc.toFixed(3) : '∞')}`, 10, 120);
+
+            ctx.fillStyle = '#663300';
+            ctx.fillText(`cot(θ) = ${(isFinite(cot) ? cot.toFixed(3) : '∞')}`, 10, 140);
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            theta = Math.atan2(cy - my, mx - cx);
+            draw();
+        });
+
+        draw();
+    </script>
+</body>
+</html>
