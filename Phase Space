@@ -1,0 +1,316 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, RotateCcw, Zap } from 'lucide-react';
+
+const PhaseSpaceVisualization = () => {
+  const [mode, setMode] = useState('2d'); // '2d' or '3d'
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [cellSize, setCellSize] = useState(40);
+  const [numParticles, setNumParticles] = useState(5);
+  const [showQuantum, setShowQuantum] = useState(true);
+  const [particles, setParticles] = useState([]);
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+
+  // Initialize particles
+  useEffect(() => {
+    const newParticles = Array.from({ length: numParticles }, () => ({
+      q: Math.random() * 400,
+      p: Math.random() * 400,
+      vq: (Math.random() - 0.5) * 2,
+      vp: (Math.random() - 0.5) * 2,
+      color: `hsl(${Math.random() * 360}, 70%, 60%)`
+    }));
+    setParticles(newParticles);
+  }, [numParticles]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const animate = () => {
+      setParticles(prev => prev.map(particle => {
+        let newQ = particle.q + particle.vq;
+        let newP = particle.p + particle.vp;
+        let newVq = particle.vq;
+        let newVp = particle.vp;
+
+        // Bounce off walls
+        if (newQ < 0 || newQ > 400) newVq *= -1;
+        if (newP < 0 || newP > 400) newVp *= -1;
+
+        newQ = Math.max(0, Math.min(400, newQ));
+        newP = Math.max(0, Math.min(400, newP));
+
+        return {
+          ...particle,
+          q: newQ,
+          p: newP,
+          vq: newVq,
+          vp: newVp
+        };
+      }));
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [isPlaying]);
+
+  // Draw on canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const width = 400;
+    const height = 400;
+
+    // Clear canvas
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, width, height);
+
+    if (mode === '2d') {
+      // Draw grid cells
+      if (showQuantum) {
+        ctx.strokeStyle = '#1e40af';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= width; i += cellSize) {
+          for (let j = 0; j <= height; j += cellSize) {
+            ctx.strokeRect(i, j, cellSize, cellSize);
+          }
+        }
+
+        // Highlight occupied cells
+        const occupiedCells = new Set();
+        particles.forEach(p => {
+          const cellQ = Math.floor(p.q / cellSize);
+          const cellP = Math.floor(p.p / cellSize);
+          const key = `${cellQ},${cellP}`;
+          occupiedCells.add(key);
+        });
+
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+        occupiedCells.forEach(key => {
+          const [cellQ, cellP] = key.split(',').map(Number);
+          ctx.fillRect(cellQ * cellSize, cellP * cellSize, cellSize, cellSize);
+        });
+      }
+
+      // Draw particles
+      particles.forEach(particle => {
+        // Draw uncertainty blob if quantum view
+        if (showQuantum) {
+          ctx.fillStyle = particle.color.replace('60%', '30%').replace(')', ', 0.3)').replace('hsl', 'hsla');
+          ctx.beginPath();
+          ctx.arc(particle.q, particle.p, cellSize / 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw particle
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.q, particle.p, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw position/momentum cross
+        ctx.strokeStyle = particle.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(particle.q - 8, particle.p);
+        ctx.lineTo(particle.q + 8, particle.p);
+        ctx.moveTo(particle.q, particle.p - 8);
+        ctx.lineTo(particle.q, particle.p + 8);
+        ctx.stroke();
+      });
+
+      // Labels
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px monospace';
+      ctx.fillText('q (position) →', 10, height - 10);
+      ctx.save();
+      ctx.translate(15, height - 20);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('p (momentum) →', 0, 0);
+      ctx.restore();
+
+      // Cell size indicator
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = '12px monospace';
+      ctx.fillText(`h₀ = ${cellSize}`, 10, 20);
+      ctx.fillText(`Cells: ${Math.floor(400/cellSize) * Math.floor(400/cellSize)}`, 10, 40);
+      ctx.fillText(`Occupied: ${new Set(particles.map(p => `${Math.floor(p.q/cellSize)},${Math.floor(p.p/cellSize)}`)).size}`, 10, 60);
+    }
+  }, [particles, cellSize, showQuantum, mode]);
+
+  const countOccupiedCells = () => {
+    const cells = new Set();
+    particles.forEach(p => {
+      const cellQ = Math.floor(p.q / cellSize);
+      const cellP = Math.floor(p.p / cellSize);
+      cells.add(`${cellQ},${cellP}`);
+    });
+    return cells.size;
+  };
+
+  const totalCells = Math.floor(400 / cellSize) * Math.floor(400 / cellSize);
+
+  return (
+    <div className="w-full max-w-4xl mx-auto p-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
+          Phase Space Cell Visualization
+        </h2>
+        <p className="text-slate-300 text-sm">
+          Watch particles move through quantized phase space. Each cell represents one microstate with volume h₀!
+        </p>
+      </div>
+
+      <div className="flex gap-6">
+        {/* Canvas */}
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            width={400}
+            height={400}
+            className="border-2 border-blue-500/50 rounded-lg shadow-lg"
+          />
+          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur px-3 py-2 rounded-lg text-xs text-slate-200">
+            <div>Dimensions: 2f (f=1)</div>
+            <div>Volume element: dq dp</div>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex-1 space-y-4">
+          {/* Play controls */}
+          <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+            <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+              <Play className="w-4 h-4" />
+              Animation Controls
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  const newParticles = Array.from({ length: numParticles }, () => ({
+                    q: Math.random() * 400,
+                    p: Math.random() * 400,
+                    vq: (Math.random() - 0.5) * 2,
+                    vp: (Math.random() - 0.5) * 2,
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                  }));
+                  setParticles(newParticles);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset
+              </button>
+            </div>
+          </div>
+
+          {/* Cell size control */}
+          <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+            <h3 className="text-white font-semibold mb-3">Cell Size (h₀)</h3>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              value={cellSize}
+              onChange={(e) => setCellSize(Number(e.target.value))}
+              className="w-full"
+            />
+            <div className="text-slate-300 text-sm mt-2">
+              h₀ = {cellSize} units
+              <div className="text-xs text-slate-400 mt-1">
+                Smaller h₀ = more microstates = higher resolution
+              </div>
+            </div>
+          </div>
+
+          {/* Particle count */}
+          <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+            <h3 className="text-white font-semibold mb-3">Number of Particles</h3>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={numParticles}
+              onChange={(e) => setNumParticles(Number(e.target.value))}
+              className="w-full"
+            />
+            <div className="text-slate-300 text-sm mt-2">
+              N = {numParticles} particles
+            </div>
+          </div>
+
+          {/* Quantum view toggle */}
+          <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showQuantum}
+                onChange={(e) => setShowQuantum(e.target.checked)}
+                className="w-5 h-5"
+              />
+              <div>
+                <div className="text-white font-semibold flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  Show Quantum Cells
+                </div>
+                <div className="text-xs text-slate-400">
+                  Visualize uncertainty and discrete microstates
+                </div>
+              </div>
+            </label>
+          </div>
+
+          {/* Statistics */}
+          <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 p-4 rounded-lg border border-blue-500/30">
+            <h3 className="text-white font-semibold mb-2">Statistics</h3>
+            <div className="space-y-1 text-sm text-slate-300">
+              <div>Total cells: <span className="text-blue-400 font-mono">{totalCells}</span></div>
+              <div>Occupied cells: <span className="text-green-400 font-mono">{countOccupiedCells()}</span></div>
+              <div>Microstates: <span className="text-purple-400 font-mono">dτ/h₀ᶠ</span></div>
+              <div className="text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700">
+                💡 Each colored region shows quantum uncertainty (Δq·Δp ≥ ℏ/2)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Explanation */}
+      <div className="mt-6 bg-slate-800/30 p-4 rounded-lg border border-slate-700">
+        <h3 className="text-white font-semibold mb-2">What You're Seeing</h3>
+        <div className="text-sm text-slate-300 space-y-2">
+          <p>
+            • Each <strong className="text-blue-400">blue grid cell</strong> represents one quantum microstate of volume h₀
+          </p>
+          <p>
+            • <strong className="text-green-400">Particles</strong> can't be pinned to exact points—they occupy cells!
+          </p>
+          <p>
+            • The <strong className="text-purple-400">glowing regions</strong> show Heisenberg uncertainty: you can't know exact (q, p) simultaneously
+          </p>
+          <p>
+            • Counting <strong className="text-yellow-400">occupied cells</strong> gives us the number of accessible microstates
+          </p>
+          <p className="text-xs text-slate-400 pt-2 border-t border-slate-700">
+            This is a 2D phase space (1 degree of freedom: f=1). For 3D particles, you'd need 6D phase space per particle!
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PhaseSpaceVisualization;
