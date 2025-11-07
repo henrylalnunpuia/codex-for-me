@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Space Visualization</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simple style for slider thumbs */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3b82f6; /* blue-600 */
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #3b82f6; /* blue-600 */
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen w-full bg-slate-900 font-sans p-4">
+
+    <!-- Main Content -->
+    <div class="w-full max-w-4xl mx-auto p-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl text-slate-100">
+        <div class="mb-6">
+            <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
+                Phase Space Cell Visualization
+            </h2>
+            <p class="text-slate-300 text-sm">
+                Watch particles move through quantized phase space. Each cell represents one microstate with volume h₀!
+            </p>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-6">
+            <!-- Canvas -->
+            <div class="relative">
+                <canvas id="visualization-canvas" width="400" height="400" class="border-2 border-blue-500/50 rounded-lg shadow-lg w-full max-w-[400px] mx-auto"></canvas>
+                <div class="absolute top-2 right-2 bg-black/60 backdrop-blur px-3 py-2 rounded-lg text-xs text-slate-200">
+                    <div>Dimensions: 2f (f=1)</div>
+                    <div>Volume element: dq dp</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex-1 space-y-4">
+                <!-- Play controls -->
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                    <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                        <!-- Play SVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Animation Controls
+                    </h3>
+                    <div class="flex gap-2">
+                        <button id="play-pause-button" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                            <span id="play-pause-icon">
+                                <!-- Play SVG -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </span>
+                            <span id="play-pause-text">Play</span>
+                        </button>
+                        <button id="reset-button" class="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">
+                            <!-- RotateCcw SVG -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cell size control -->
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                    <h3 class="text-white font-semibold mb-3">Cell Size (h₀)</h3>
+                    <input id="cell-size-slider" type="range" min="20" max="100" value="40" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    <div class="text-slate-300 text-sm mt-2">
+                        <span id="cell-size-readout">h₀ = 40 units</span>
+                        <div class="text-xs text-slate-400 mt-1">
+                            Smaller h₀ = more microstates = higher resolution
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Particle count -->
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                    <h3 class="text-white font-semibold mb-3">Number of Particles</h3>
+                    <input id="num-particles-slider" type="range" min="1" max="20" value="5" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    <div class="text-slate-300 text-sm mt-2">
+                        <span id="num-particles-readout">N = 5 particles</span>
+                    </div>
+                </div>
+
+                <!-- Quantum view toggle -->
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input id="quantum-toggle" type="checkbox" checked class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500">
+                        <div>
+                            <div class="text-white font-semibold flex items-center gap-2">
+                                <!-- Zap SVG -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-400"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                Show Quantum Cells
+                            </div>
+                            <div class="text-xs text-slate-400">
+                                Visualize uncertainty and discrete microstates
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Statistics -->
+                <div class="bg-gradient-to-br from-blue-900/30 to-purple-900/30 p-4 rounded-lg border border-blue-500/30">
+                    <h3 class="text-white font-semibold mb-2">Statistics</h3>
+                    <div class="space-y-1 text-sm text-slate-300">
+                        <div>Total cells: <span id="total-cells-stat" class="text-blue-400 font-mono">100</span></div>
+                        <div>Occupied cells: <span id="occupied-cells-stat" class="text-green-400 font-mono">0</span></div>
+                        <div>Microstates: <span class="text-purple-400 font-mono">dτ/h₀ᶠ</span></div>
+                        <div class="text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700">
+                            💡 Each colored region shows quantum uncertainty (Δq·Δp ≥ ℏ/2)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="mt-6 bg-slate-800/30 p-4 rounded-lg border border-slate-700">
+            <h3 class="text-white font-semibold mb-2">What You're Seeing</h3>
+            <div class="text-sm text-slate-300 space-y-2">
+                <p>• Each <strong class="text-blue-400">blue grid cell</strong> represents one quantum microstate of volume h₀.</p>
+                <p>• <strong class="text-green-400">Particles</strong> can't be pinned to exact points—they occupy cells!</p>
+                <p>• The <strong class="text-purple-400">glowing regions</strong> show Heisenberg uncertainty: you can't know exact (q, p) simultaneously.</p>
+                <p>• Counting <strong class="text-yellow-400">occupied cells</strong> gives us the number of accessible microstates.</p>
+                <p class="text-xs text-slate-400 pt-2 border-t border-slate-700">
+                    This is a 2D phase space (1 degree of freedom: f=1). For 3D particles, you'd need 6D phase space per particle!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plain JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- State Variables ---
+            let isPlaying = false;
+            let cellSize = 40;
+            let numParticles = 5;
+            let showQuantum = true;
+            let particles = [];
+            let animationFrameId = null;
+
+            // --- Icon SVGs ---
+            const playIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+            const pauseIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+            // --- DOM Elements ---
+            const canvas = document.getElementById('visualization-canvas');
+            const ctx = canvas.getContext('2d');
+            const playPauseButton = document.getElementById('play-pause-button');
+            const playPauseIcon = document.getElementById('play-pause-icon');
+            const playPauseText = document.getElementById('play-pause-text');
+            const resetButton = document.getElementById('reset-button');
+            
+            const cellSizeSlider = document.getElementById('cell-size-slider');
+            const cellSizeReadout = document.getElementById('cell-size-readout');
+            
+            const numParticlesSlider = document.getElementById('num-particles-slider');
+            const numParticlesReadout = document.getElementById('num-particles-readout');
+            
+            const quantumToggle = document.getElementById('quantum-toggle');
+            
+            const totalCellsStat = document.getElementById('total-cells-stat');
+            const occupiedCellsStat = document.getElementById('occupied-cells-stat');
+
+            // --- Core Functions ---
+
+            function countOccupiedCells() {
+                const cells = new Set();
+                particles.forEach(p => {
+                    const cellQ = Math.floor(p.q / cellSize);
+                    const cellP = Math.floor(p.p / cellSize);
+                    cells.add(`${cellQ},${cellP}`);
+                });
+                return cells.size;
+            }
+
+            function updateStats() {
+                const totalCells = Math.floor(400 / cellSize) * Math.floor(400 / cellSize);
+                const occupiedCells = countOccupiedCells();
+                
+                totalCellsStat.textContent = totalCells;
+                occupiedCellsStat.textContent = occupiedCells;
+            }
+
+            function draw() {
+                const width = canvas.width;
+                const height = canvas.height;
+
+                // Clear canvas
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, width, height);
+
+                const occupiedCells = new Set();
+                particles.forEach(p => {
+                    const cellQ = Math.floor(p.q / cellSize);
+                    const cellP = Math.floor(p.p / cellSize);
+                    occupiedCells.add(`${cellQ},${cellP}`);
+                });
+
+                // Draw grid cells
+                if (showQuantum) {
+                    ctx.strokeStyle = '#1e40af';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i <= width; i += cellSize) {
+                        for (let j = 0; j <= height; j += cellSize) {
+                            ctx.strokeRect(i, j, cellSize, cellSize);
+                        }
+                    }
+
+                    // Highlight occupied cells
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+                    occupiedCells.forEach(key => {
+                        const [cellQ, cellP] = key.split(',').map(Number);
+                        ctx.fillRect(cellQ * cellSize, cellP * cellSize, cellSize, cellSize);
+                    });
+                }
+
+                // Draw particles
+                particles.forEach(particle => {
+                    // Draw uncertainty blob if quantum view
+                    if (showQuantum) {
+                        ctx.fillStyle = particle.color.replace('60%', '30%').replace(')', ', 0.3)').replace('hsl', 'hsla');
+                        ctx.beginPath();
+                        ctx.arc(particle.q, particle.p, cellSize / 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Draw particle
+                    ctx.fillStyle = particle.color;
+                    ctx.beginPath();
+                    ctx.arc(particle.q, particle.p, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw position/momentum cross
+                    ctx.strokeStyle = particle.color;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(particle.q - 8, particle.p);
+                    ctx.lineTo(particle.q + 8, particle.p);
+                    ctx.moveTo(particle.q, particle.p - 8);
+                    ctx.lineTo(particle.q, particle.p + 8);
+                    ctx.stroke();
+                });
+
+                // Labels
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '14px monospace';
+                ctx.fillText('q (position) →', 10, height - 10);
+                ctx.save();
+                ctx.translate(15, height - 20);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('p (momentum) →', 0, 0);
+                ctx.restore();
+
+                // Cell size indicator
+                ctx.fillStyle = '#60a5fa';
+                ctx.font = '12px monospace';
+                ctx.fillText(`h₀ = ${cellSize}`, 10, 20);
+                ctx.fillText(`Cells: ${Math.floor(400/cellSize) * Math.floor(400/cellSize)}`, 10, 40);
+                ctx.fillText(`Occupied: ${occupiedCells.size}`, 10, 60);
+            }
+
+            function animate() {
+                if (!isPlaying) return;
+
+                particles = particles.map(particle => {
+                    let newQ = particle.q + particle.vq;
+                    let newP = particle.p + particle.vp;
+                    let newVq = particle.vq;
+                    let newVp = particle.vp;
+
+                    // Bounce off walls
+                    if (newQ < 0 || newQ > 400) newVq *= -1;
+                    if (newP < 0 || newP > 400) newVp *= -1;
+
+                    newQ = Math.max(0, Math.min(400, newQ));
+                    newP = Math.max(0, Math.min(400, newP));
+
+                    return { ...particle, q: newQ, p: newP, vq: newVq, vp: newVp };
+                });
+
+                draw();
+                updateStats();
+                animationFrameId = requestAnimationFrame(animate);
+            }
+
+            function resetParticles() {
+                isPlaying = false;
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                
+                playPauseText.textContent = 'Play';
+                playPauseIcon.innerHTML = playIcon;
+
+                particles = Array.from({ length: numParticles }, () => ({
+                    q: Math.random() * 400,
+                    p: Math.random() * 400,
+                    vq: (Math.random() - 0.5) * 2,
+                    vp: (Math.random() - 0.5) * 2,
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                }));
+
+                draw();
+                updateStats();
+            }
+
+            function togglePlayPause() {
+                isPlaying = !isPlaying;
+                if (isPlaying) {
+                    playPauseText.textContent = 'Pause';
+                    playPauseIcon.innerHTML = pauseIcon;
+                    animate();
+                } else {
+                    playPauseText.textContent = 'Play';
+                    playPauseIcon.innerHTML = playIcon;
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
+                }
+            }
+
+            // --- Event Listeners ---
+            playPauseButton.addEventListener('click', togglePlayPause);
+            resetButton.addEventListener('click', resetParticles);
+
+            cellSizeSlider.addEventListener('input', (e) => {
+                cellSize = Number(e.target.value);
+                cellSizeReadout.textContent = `h₀ = ${cellSize} units`;
+                draw(); // Redraw with new cell size
+                updateStats();
+            });
+
+            numParticlesSlider.addEventListener('input', (e) => {
+                numParticles = Number(e.target.value);
+                numParticlesReadout.textContent = `N = ${numParticles} particles`;
+                resetParticles(); // Reset with new particle count
+            });
+
+            quantumToggle.addEventListener('change', (e) => {
+                showQuantum = e.target.checked;
+                draw(); // Redraw with toggle
+            });
+
+            // --- Initial Setup ---
+            resetParticles();
+        });
+    </script>
+</body>
+</html>
