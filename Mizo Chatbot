@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wuvalrina</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Load Babel to process JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- 1. SETUP ICONS (We create them manually since we can't import files) ---
+        const IconBase = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Sparkles = (p) => <IconBase {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></IconBase>;
+        const Info = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconBase>;
+        const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const User = (p) => <IconBase {...p}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
+        const Bot = (p) => <IconBase {...p}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></IconBase>;
+        const Loader2 = ({ className, ...p }) => <IconBase className={`animate-spin ${className}`} {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>;
+        const Send = (p) => <IconBase {...p}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></IconBase>;
+        const X = (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Code = (p) => <IconBase {...p}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></IconBase>;
+
+        // --- 2. MAIN APP LOGIC ---
+        const { useState, useRef, useEffect } = React;
+
+        const MizoChatbot = () => {
+            const [messages, setMessages] = useState([
+                { role: 'model', text: "Chibai! Wuvalrina ka ni a, engtin nge ka puih theih che? Mizo ṭawng chiah ka thiam a, min be rawh le." }
+            ]);
+            const [input, setInput] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const [showCredits, setShowCredits] = useState(false);
+            const messagesEndRef = useRef(null);
+            const inputRef = useRef(null);
+
+            useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+            useEffect(() => { inputRef.current?.focus(); }, []);
+
+            const handleSend = async () => {
+                if (!input.trim()) return;
+                const userMessage = { role: 'user', text: input };
+                setMessages(prev => [...prev, userMessage]);
+                setInput('');
+                setIsLoading(true);
+
+                try {
+                    // ---------------------------------------------------------
+                    // IMPORTANT: PASTE YOUR GEMINI API KEY INSIDE THE QUOTES BELOW
+                    // ---------------------------------------------------------
+                    const apiKey = "AIzaSyCGMm74GQlHRHflliUvMxRFx7RINOYGF9Q"; 
+                    
+                    const recentHistory = messages.slice(-10).map(msg => ({
+                        role: msg.role === 'model' ? 'model' : 'user',
+                        parts: [{ text: msg.text }]
+                    }));
+
+                    const contents = [...recentHistory, { role: 'user', parts: [{ text: userMessage.text }] }];
+
+                    const systemInstruction = {
+                        parts: [{
+                            text: `
+                                You are "Wuvalrina". You speak ONLY Mizo.
+                                
+                                RULES:
+                                1. If user speaks ANY language other than Mizo, reply EXACTLY: "I tawng ka hrethiam lo".
+                                2. Be polite in Mizo.
+                                
+                                CREATORS:
+                                If asked who made you, say: "Henry Lalnunpuia leh a thiante: Sangtea (Lalnunsanga), Mazualtea (Lalthazuala), Jojoa (Malsawmtluanga), Lalbawiha (Reuben Lalruatzela), Kimkima (Lalmuankima), RSA (Lalramsiama), Lalrina (Lalrinsanga), Michaela (Michael malsawmtluanga), leh Khawtea (Lalkhawngaiha)".
+                                
+                                STORY:
+                                If asked about Henry Lalnunpuia, tell the story about his interest in Physics, CS, AI and his Christmas friends listed above.
+                            `
+                        }]
+                    };
+
+                    const response = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: contents,
+                                systemInstruction: systemInstruction,
+                                generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+                            }),
+                        }
+                    );
+
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                    const data = await response.json();
+                    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Min hrethiam lo, khawngaihin sawi nawn rawh.";
+                    setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+
+                } catch (error) {
+                    console.error("Error:", error);
+                    setMessages(prev => [...prev, { role: 'model', text: "Ka tihpalh, thil dik lo a awm tlat. (Check API Key)" }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+
+            return (
+                <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-900 relative">
+                    {/* CREDITS MODAL */}
+                    {showCredits && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="bg-indigo-600 p-6 text-center relative flex-none">
+                                    <button onClick={() => setShowCredits(false)} className="absolute top-4 right-4 text-white/80 hover:text-white"><X size={24} /></button>
+                                    <div className="w-16 h-16 bg-white rounded-full mx-auto flex items-center justify-center shadow-lg mb-3"><Code size={28} className="text-indigo-600" /></div>
+                                    <h2 className="text-white text-xl font-bold uppercase">Credits</h2>
+                                </div>
+                                <div className="p-6 text-center overflow-y-auto flex-1">
+                                    <div className="text-sm text-slate-600 space-y-2 font-medium">
+                                        <p className="text-indigo-600 font-bold text-lg mb-2">Henry Lalnunpuia</p>
+                                        <p>Sangtea (Lalnunsanga)</p>
+                                        <p>Mazualtea (Lalthazuala)</p>
+                                        <p>Jojoa (Malsawmtluanga)</p>
+                                        <p>Lalbawiha (Reuben Lalruatzela)</p>
+                                        <p>Kimkima (Lalmuankima)</p>
+                                        <p>RSA (Lalramsiama)</p>
+                                        <p>Lalrina (Lalrinsanga)</p>
+                                        <p>Michaela (Michael malsawmtluanga)</p>
+                                        <p>Khawtea (Lalkhawngaiha)</p>
+                                    </div>
+                                </div>
+                                <div className="p-4 border-t border-slate-100 flex-none">
+                                    <button onClick={() => setShowCredits(false)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl">Ka hrethiam e</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HEADER - CLEAN (No Henry Lalnunpuia text here) */}
+                    <header className="flex-none bg-white border-b border-slate-200 px-4 py-4 shadow-sm z-10">
+                        <div className="max-w-3xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center shadow-md">
+                                    <Sparkles className="w-6 h-6 text-white" />
+                                </div>
+                                <h1 className="font-bold text-xl text-slate-800 leading-tight">Wuvalrina</h1>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setShowCredits(true)} className="p-2 text-slate-400 hover:text-indigo-600 bg-indigo-50 rounded-full"><Info size={20} /></button>
+                                <button onClick={() => setMessages([{role: 'model', text: "Chibai! Wuvalrina ka ni a..."}])} className="p-2 text-slate-400 hover:text-red-500 bg-red-50 rounded-full"><Trash2 size={20} /></button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* CHAT AREA */}
+                    <main className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
+                        <div className="max-w-3xl mx-auto space-y-6">
+                            {messages.map((msg, index) => (
+                                <div key={index} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        <div className={`flex-none w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                                        </div>
+                                        <div className={`px-4 py-3 rounded-2xl shadow-sm text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'}`}>
+                                            {msg.text}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && <div className="flex w-full justify-start"><div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center"><Bot size={16}/></div><div className="bg-white border px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-slate-400"/><span className="text-sm text-slate-500">Wuvalrina a inziak mek...</span></div></div></div>}
+                            <div ref={messagesEndRef} />
+                        </div>
+                    </main>
+
+                    {/* FOOTER - CLEAN (No Henry Lalnunpuia text here) */}
+                    <footer className="flex-none bg-white border-t border-slate-200 p-4">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="relative flex items-end gap-2 bg-slate-100 rounded-3xl border border-slate-200 px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-500">
+                                <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Wuvalrina be rawh..." className="flex-1 max-h-32 min-h-[44px] py-3 bg-transparent border-none focus:ring-0 resize-none text-slate-800 focus:outline-none" rows={1} style={{ height: 'auto', overflow: 'hidden' }} />
+                                <button onClick={handleSend} disabled={!input.trim() || isLoading} className="mb-1 p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 shadow-md">
+                                    {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                                </button>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MizoChatbot />);
+    </script>
+</body>
+</html>
